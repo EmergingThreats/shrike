@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import tailer
 import requests
 import re
