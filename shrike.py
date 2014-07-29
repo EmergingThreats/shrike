@@ -8,14 +8,19 @@ import struct
 import socket
 import time
 import sys
+import os
+import urlparse
 
+alert_search_list = []
+http_search_list = []
 http_stack = []
 http_stack_limit = 100000
 alert_stack = []
 alert_stack_limit = 200
 alert_stack_timeout = 300
 buffer_full = False
-
+cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None}
+ 
 #### suricata.yaml eve config ####
 #  - eve-log:
 #      enabled: yes
@@ -54,28 +59,6 @@ buffer_full = False
 #if search type is a _re match we compile the provided regex and try to match in the target buffer
 
 #split these out to keep lists for event types as small as possible
-alert_search_list = [
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2807913, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2017567, "hash_type": "hash4"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2017817, "hash_type": "hash4"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2017552, "hash_type": "hash4"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2018441, "hash_type": "hash4"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2018583, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2017667, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2017666, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2013036, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2015888, "hash_type": "haship"},
-        {"send_method": "referer", "search_type": "alert_sid", "match": 2018259, "hash_type": "haship"},
-        ]
-http_search_list = [
-        {"send_method": "referer", "search_type": "dest_ip", "match": "10.1.10.10"},
-        {"send_method": "referer", "search_type": "http_uri_re", "match": "^\/\?PHPSSESID="},
-        ]
-
-for e in http_search_list:
-    if e["search_type"] == "http_uri_re" or e["search_type"] == "http_referer_re" or e["search_type"] == "http_host_re":
-        e["cmatch"] = re.compile(e["match"])
-
 
 def ip_to_uint32(ip):
    t = socket.inet_aton(ip)
@@ -88,12 +71,12 @@ def uint32_to_ip(ipn):
 def autofire(target):
     #see http://docs.python-requests.org/en/latest/ for requests
     try:
-        user="someuser"
-        password="somepass"
-        proxies = { "http": "192.168.1.1:3128", "https": "192.168.1.1:3128",}
-        url = "https://cuckooapi.behind.rproxy.with.auth.and.ssl:8443/tasks/create/url"
+        if cuckoo_api["target_prepend"]:
+            target = cuckoo_api["target_prepend"] + target
+        if cuckoo_api["target_append"]:
+            target = target + cuckoo_api["target_append"]
         data=dict(url=target)
-        response = requests.post(url, auth=(user,password), data=data, proxies=proxies, verify=False)
+        response = requests.post(cuckoo_api["url"], auth=(cuckoo_api["user"],cuckoo_api["pass"]), data=data, proxies=cuckoo_api["proxies"], verify=cuckoo_api["verifyssl"])
         print response
     except Exception as e:
         print "failed to send target:%s reason:%s" % (target,e)
@@ -112,10 +95,12 @@ def search_http_for_alert(e):
             if match_found:
                 print ("hash match %s and %s" % (hentry,e))
 
-                if e["send_method"] == "referer" and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"] not in hentry["http"]["http_refer"]:
-                    print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
-                    autofire(hentry["http"]["http_refer"])
-                    return match_found
+                if e["send_method"] == "referer" and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"]:
+                    url = urlparse.urlsplit(hentry["http"]["http_refer"])
+                    if hentry["http"]["hostname"] != url.hostname: 
+                        print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
+                        autofire(hentry["http"]["http_refer"])
+                        return match_found
 
                 elif e["send_method"] == "url" and hentry["http"].has_key("url"):
                     build_url = "http://"
@@ -222,9 +207,89 @@ def alert_check_search_list(e):
            print "alert not found searching existing logs adding to alert stack %s" % (e)
            alert_stack.append(e)
 
+#Start#
 print "Start time:%s" % (int(time.time()))
-#TODO: make this a cli option
-for line in tailer.follow(open('eve.json')):
+try:
+    f=open(sys.argv[1])
+    conf=json.load(f)
+except Exception as e:
+    print "failed to load shrike config file %s\nshrike.py <conf.json>" % (e)
+    sys.exit(1)
+
+#Parse alert_search_list
+if conf.has_key("alert_search_list"):
+    alert_search_list = conf["alert_search_list"]
+
+#Parse http_search_list
+if conf.has_key("http_search_list"):
+    http_search_list = conf["http_search_list"]
+
+for e in http_search_list:
+    if e["search_type"] == "http_uri_re" or e["search_type"] == "http_referer_re" or e["search_type"] == "http_host_re":
+        try:
+            e["cmatch"] = re.compile(e["match"])
+        except Exception as err:
+            print "failed to compile regex for re match %s" % (e)
+            sys.exit(1)
+
+#http_stack_limit the number of lines we keep in buffer defaults to 100k
+if conf.has_key("http_stack_limit") and conf["http_stack_limit"]:
+    http_stack_limit = conf["http_stack_limit"]
+
+#alert_stack_timeout the amount of time to remove an alert from the alert stack
+if conf.has_key("alert_stack_timeout") and conf["alert_stack_timeout"]:
+    alert_stack_timeout = conf["alert_stack_timeout"]
+
+#alert_stack_limit the maximum number of active alerts to deal with
+if conf.has_key("alert_stack_limit") and conf["alert_stack_limit"]:
+    alert_stack_limit = conf["alert_stack_limit"]
+
+#get settings for cuckoo_api url
+if conf.has_key("cuckoo_api"):
+    if conf["cuckoo_api"].has_key("url"):
+        cuckoo_api["url"] = conf["cuckoo_api"]["url"]
+    else:
+        print "You must specify a url setting in the cuckoo_api portion of the config"
+        sys.exit(1)
+
+    #do or do not perform ssl verification. There is no try
+    if conf["cuckoo_api"].has_key("verifyssl") and conf["cuckoo_api"]["verifyssl"] == 1:
+        cuckoo_api["verifyssl"] = True 
+    #basic auth stuff
+    if conf["cuckoo_api"].has_key("user") and not conf["cuckoo_api"].has_key("pass"): 
+        print "basic auth user specified but no password"
+        sys.exit(1)
+    elif conf["cuckoo_api"].has_key("pass") and not conf["cuckoo_api"].has_key("user"):
+        print "basic auth pass specified but no user"
+        sys.exit(1)
+    elif conf["cuckoo_api"].has_key("user") and conf["cuckoo_api"]["user"] and conf["cuckoo_api"].has_key("pass") and conf["cuckoo_api"]["pass"]:
+        cuckoo_api["user"] = conf["cuckoo_api"]["user"]
+        cuckoo_api["pass"] = conf["cuckoo_api"]["pass"]
+    #proxy
+    if conf["cuckoo_api"].has_key("proxies") and conf["cuckoo_api"]["proxies"]:
+        cuckoo_api["proxies"] = conf["cuckoo_api"]["proxies"]
+
+    #if specified prepend something to the target uri
+    if conf["cuckoo_api"].has_key("target_prepend"):
+        cuckoo_api["target_prepend"] = conf["cuckoo_api"]["target_prepend"]
+
+    #if specified append something to the target uri
+    if conf["cuckoo_api"].has_key("target_append"):
+        cuckoo_api["target_append"] = conf["cuckoo_api"]["target_append"]
+
+else:
+   print "did not find cuckoo_api key bailing"
+   sys.exit(1)
+#Get path to eve file and make sure it exists
+if conf.has_key("eve_file"):
+   if not os.path.exists(conf["eve_file"]):
+       print "specified eve file does not exist %s" % (conf["eve_file"])
+       sys.exit(1) 
+else:
+    print "No eve file specified with 'eve_file' key in config"
+    sys.exit(1)
+
+for line in tailer.follow(open(conf["eve_file"])):
     try:
         e = json.loads(line)
         if e["event_type"] == "http":

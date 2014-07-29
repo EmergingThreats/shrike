@@ -1,0 +1,109 @@
+{
+    "alert_search_list": [
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2807913
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "hash4", 
+            "send_method": "referer", 
+            "match": 2017567
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "hash4", 
+            "send_method": "referer", 
+            "match": 2017817
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "hash4", 
+            "send_method": "referer", 
+            "match": 2017552
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "hash4", 
+            "send_method": "referer", 
+            "match": 2018441
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2018583
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2017667
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2017666
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2013036
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2015888
+        }, 
+        {
+            "search_type": "alert_sid", 
+            "hash_type": "haship", 
+            "send_method": "referer", 
+            "match": 2018259
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "url",
+            "match": 2018686 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "referer",
+            "match": 2018613 
+        }
+    ],
+    "http_search_list": [
+        {
+            "search_type": "dest_ip", 
+            "send_method": "referer", 
+            "match": "10.1.10.10"
+        }, 
+        {
+            "search_type": "http_uri_re", 
+            "send_method": "referer", 
+            "match": "^\\\\/\\\\?PHPSSESID="
+        }
+    ],
+    "cuckoo_api": {
+        "url": "https://cuckooapi.behind.rproxy.with.auth.and.ssl:8443/tasks/create/url", 
+        "proxies": {
+            "http": "192.168.1.1:3128", 
+            "https": "192.168.1.1:3128"
+        }, 
+        "user": "user", 
+        "pass": "pass",
+        "verifyssl": 0,
+        "target_append": "&SomeArg=http://blah.com/ImPoped" 
+    },
+    "eve_file": "/var/log/apache2/error.log",
+    "http_stack_limit": 100000,
+    "alert_stack_limit": 200,
+    "alert_stack_timeout": 300
+}
