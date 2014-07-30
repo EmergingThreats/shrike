@@ -35,8 +35,9 @@ cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "
 #################################
 
 #send_method
-#url Match URL Send Original
+#url Send Original url for match
 #referer Match URL Send Referer
+#landing If referer is found send landing URL
 
 #search_type
 #alert_sid
@@ -68,6 +69,20 @@ def uint32_to_ip(ipn):
    t = struct.pack("!I", ipn)
    return socket.inet_ntoa(t)
 
+def build_url_from_entry(hentry):
+    if hentry["http"].has_key("url"):
+        build_url = "http://"
+        if hentry["http"].has_key("hostname"):
+            build_url = build_url + hentry["http"]["hostname"]
+        else:
+            build_url = build_url + hentry["dest_ip"]
+
+        if hentry["dest_port"] != "80":
+            buld_url = build_url + ":%s" % (hentry["dest_port"])
+        build_url = build_url + hentry["http"]["url"]
+        return build_url
+    else:
+        return None
 def autofire(target):
     #see http://docs.python-requests.org/en/latest/ for requests
     try:
@@ -94,28 +109,27 @@ def search_http_for_alert(e):
 
             if match_found:
                 print ("hash match %s and %s" % (hentry,e))
-
-                if e["send_method"] == "referer" and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"]:
+                if (e["send_method"] == "referer" or e["send_method"] == "landing") and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"]:
                     url = urlparse.urlsplit(hentry["http"]["http_refer"])
-                    if hentry["http"]["hostname"] != url.hostname: 
-                        print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
-                        autofire(hentry["http"]["http_refer"])
-                        return match_found
+                    if hentry["http"]["hostname"] != url.hostname:
+                        if e["send_method"] == "referer":
+                            print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
+                            autofire(hentry["http"]["http_refer"])
+                            return match_found
+                        elif e["send_method"] == "landing":
+                            fire = build_url_from_entry(hentry)
+                            if fire != None:
+                                print "autofiring %s from search_http_for_alert" % (fire)
+                                autofire(fire)
+                                return match_found
 
                 elif e["send_method"] == "url" and hentry["http"].has_key("url"):
-                    build_url = "http://"
-                    if hentry["http"].has_key("hostname"):
-                        build_url = build_url + hentry["http"]["hostname"]
-                    else:
-                        build_url = build_url + hentry["dest_ip"]
+                    fire = build_url_from_entry(hentry)
+                    if fire != None:
+                        print "autofiring %s from search_http_for_alert" % (fire)
+                        autofire(fire)
+                        return match_found
 
-                    if hentry["dest_port"] != "80":
-                        buld_url = build_url + ":%s" % (hentry["dest_port"])
-                    build_url = build_url + hentry["http"]["url"]
-                    print "autofiring url %s from http_search_list" % (build_url)
-                                        
-                    autofire(build_url)
-                    return match_found
     except Exception as e:
         print "Exception resolving alert to url %s " % (e)
         return False 
@@ -204,7 +218,7 @@ def alert_check_search_list(e):
                e["fired"] = True
            else:
                e["fired"] = False
-           print "alert not found searching existing logs adding to alert stack %s" % (e)
+               print "alert not found searching existing logs adding to alert stack %s" % (e)
            alert_stack.append(e)
 
 #Start#
