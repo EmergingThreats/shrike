@@ -5,17 +5,47 @@
             "hash_type": "haship", 
             "send_method": "referer", 
             "match": 2807913
-        }, 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "url",
+            "match": 2019072
+        },
         {
             "search_type": "alert_sid", 
             "hash_type": "hash4", 
             "send_method": "referer", 
             "match": 2017567
-        }, 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2018783
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2018146 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2018299 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2018145 
+        },
         {
             "search_type": "alert_sid", 
             "hash_type": "hash4", 
-            "send_method": "referer", 
+            "send_method": "url", 
             "match": 2017817
         }, 
         {
@@ -26,14 +56,14 @@
         }, 
         {
             "search_type": "alert_sid", 
-            "hash_type": "hash4", 
+            "hash_type": "haship", 
             "send_method": "referer", 
             "match": 2018441
         }, 
         {
             "search_type": "alert_sid", 
             "hash_type": "haship", 
-            "send_method": "referer", 
+            "send_method": "landing", 
             "match": 2018583
         }, 
         {
@@ -77,32 +107,146 @@
             "hash_type": "hash4",
             "send_method": "referer",
             "match": 2018613 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2017786
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "url",
+            "match": 2015982
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "referer",
+            "match": 2018737 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "referer",
+            "match": 2018741 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "referer",
+            "match": 2017694
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "url",
+            "match": 2015665
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2017774
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2017849
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "hash4",
+            "send_method": "referer",
+            "match": 2018909
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2018930 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2018348
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2014972
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2015605
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2016190
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2016541
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2806359 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2015711
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2015712
+        },
+        {
+            "search_type": "alert_msg_re",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": "(?:M(?:icrosoft Internet Explorer Use After free|a(?:lvertising[^\\x2e]|gnitude)|e(?:mory Corruption|tasploit))|S(?:(?:ibhos|edni)t|weet Orange|ofosFO|akura|PL2|tyx)|L(?:ikely Evil XMLDOM Detection of Local File|ucky7)|C(?:ushion Redirection|ollectGarbage|VE-2013-3893)|(?:Obfuscated With Allator|gt 60char hex-asci)i|N(?:u(?:clear(?:Pack)?|llHole)|ailedPack)|non JAR EXT matches various EKs|H(?:e(?:apSpray|llSpawn)|iMan)|F(?:l(?:ashPack|imKit)|iesta)|obfuscated URL Apr 10 2013|(?:BleedingLif|WhiteHol)e|(?:click2pla|infinit)y|A(?:ngler|rchie|strum)|(?:[Uu]nknown|RIG) EK|applet_ssv_validated|Go(?:nDadEK|on)|2013-2551|Impact|Job314| DOL |Dotka)"
         }
     ],
     "http_search_list": [
         {
-            "search_type": "dest_ip", 
-            "send_method": "referer", 
-            "match": "10.1.10.10"
-        }, 
-        {
             "search_type": "http_uri_re", 
             "send_method": "referer", 
-            "match": "^\\\\/\\\\?PHPSSESID="
+            "match": "^\\\/\\?PHPSSESID="
+        }
+    ],
+    "autofire_blacklist": [
+        {
+            "search_type": "re",
+            "match": ".pl\\\/\\d{10}\\\/[a-f0-9]{40}"
         }
     ],
     "cuckoo_api": {
-        "url": "https://cuckooapi.behind.rproxy.with.auth.and.ssl:8443/tasks/create/url", 
+        "url": "https://some.cuckoo.server:8443/tasks/create/url", 
         "proxies": {
-            "http": "192.168.1.1:3128", 
-            "https": "192.168.1.1:3128"
+            "http": "some.proxy.lan:3128", 
+            "https": "some.proxy.lan:3128"
         }, 
         "user": "user", 
         "pass": "pass",
-        "verifyssl": 0,
-        "target_append": "&SomeArg=http://blah.com/ImPoped" 
+        "verifyssl": 0
     },
-    "eve_file": "/var/log/apache2/error.log",
+    "eve_file": "/var/log/suricata/eve.json",
     "http_stack_limit": 100000,
     "alert_stack_limit": 200,
     "alert_stack_timeout": 300

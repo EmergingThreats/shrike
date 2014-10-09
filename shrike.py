@@ -10,9 +10,14 @@ import time
 import sys
 import os
 import urlparse
+import random
+import string
+import urllib
 
-alert_search_list = []
+alert_search_list_sid = []
+alert_search_list_msg_re = []
 http_search_list = []
+autofire_blacklist = []
 http_stack = []
 http_stack_limit = 100000
 alert_stack = []
@@ -20,7 +25,18 @@ alert_stack_limit = 200
 alert_stack_timeout = 300
 buffer_full = False
 cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None}
- 
+googledoms = ["google.co.uk","google.com.ag","google.com.au","google.com.ar","google.com.br","google.ca","google.co.in","google.cn"]
+WORDS=[]
+
+################
+# Requires requests
+# pip install requests
+# 
+# Requires words file
+# sudo apt-get install dictionaries-common wamerican wbritish
+############### 
+
+
 #### suricata.yaml eve config ####
 #  - eve-log:
 #      enabled: yes
@@ -41,6 +57,7 @@ cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "
 
 #search_type
 #alert_sid
+#alert_msg_re
 #http_uri
 #http_refer
 #http_uri_re
@@ -83,13 +100,80 @@ def build_url_from_entry(hentry):
         return build_url
     else:
         return None
+
+def random_alpha_numeric(len):
+    return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for i in range(len))
+def random_alpha_numeric_upper(len):
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for i in range(len))
+def random_alpha_numeric_lower(len):
+    return ''.join(random.choice(string.ascii_lowercase + string.digits) for i in range(len))
+def random_alpha_upper(len):
+    return ''.join(random.choice(string.ascii_uppercase) for i in range(len))
+def random_alpha_upper(len):
+    return ''.join(random.choice(string.ascii_lowercase) for i in range(len))
+def random_alpha_mixed(len):
+    return ''.join(random.choice(string.ascii_lowercase + string.ascii_lowercase) for i in range(len))
+def random_yahoo_thingy(len):
+    return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits + "-" + "_") for i in range(len))
+
+def gen_fake_google(target,from_list):
+    print "making fake google"
+    dom = ""
+    if from_list:
+        dom = "www." + random.choice(googledoms)
+    else:
+        dom = "www.google.com"
+    fake_url = "http://%s/url?sa=t&rct=j&q=&esrc=web&cd=%s&cad=rja&uact=%s&ved=%s&url=%s&ei=%s&usg=%s&bvm=bv.%s,d.%s" % (dom,random.randint(1,9),random.randint(1,9),random_alpha_numeric(8),urllib.quote_plus(target),random_alpha_numeric(22),random_alpha_numeric(32),random.randint(70000000, 80000000),random_alpha_numeric(3))
+    return fake_url
+
+def gen_fake_yahoo(target):
+    print "making fake yahoo"
+    dom = "r.search.yahoo.com"
+    fake_url = "http://%s/_ylt=%s;_ylu=%s/RV=2/RE=%s/RU=%s/RK=0/RS=%s.%s" % (dom,random_yahoo_thingy(random.randint(9,20)),random_yahoo_thingy(random.randint(9,20)),int(time.time()),urllib.quote_plus(target),random_yahoo_thingy(random.randint(9,20)),random_yahoo_thingy(random.randint(9,20)))
+    return fake_url
+
+def gen_fake_bing():
+     print "making fake bing"
+     fake_url = "http://www.bing.com/search?q=" + random.choice(WORDS).rstrip() + "&form=" + random_alpha_upper(random.randint(1,6)) 
+     return fake_url
+
+def target_prepend_gen(target):
+    return None
+def target_append_gen(target):
+##### Referer Injection ############
+#    choice = random.randint(1,3)
+#    if choice == 1:
+#        fakeurl = "&SomeParam=" + gen_fake_google(target,False)
+#    elif choice == 2:
+#        fakeurl = "&SomeParam=" + gen_fake_bing()
+#    elif choice == 3:
+#        fakeurl = "&SomeParam=" + gen_fake_yahoo(target)
+#    return fakeurl
+    return None
+
 def autofire(target):
     #see http://docs.python-requests.org/en/latest/ for requests
+    if autofire_blacklist:
+        for e in autofire_blacklist:
+            if e["cmatch"].search(target) != None:
+                print "Not sending %s as it matches our autofire blacklist" % (target)
+                return 
     try:
         if cuckoo_api["target_prepend"]:
             target = cuckoo_api["target_prepend"] + target
+
+        else:
+            tprepend = target_prepend_gen(target)
+            if tprepend:
+                target = tprepend + target
+
         if cuckoo_api["target_append"]:
             target = target + cuckoo_api["target_append"]
+        else:
+            tappend = target_append_gen(target)
+            if tappend:
+                target = target + tappend
+
         data=dict(url=target)
         response = requests.post(cuckoo_api["url"], auth=(cuckoo_api["user"],cuckoo_api["pass"]), data=data, proxies=cuckoo_api["proxies"], verify=cuckoo_api["verifyssl"])
         print response
@@ -185,8 +269,10 @@ def http_check_search_list(e):
     return match_found
 
 def alert_check_search_list(e):
-    for asl in alert_search_list:
+    alert_sid_match = False
+    for asl in alert_search_list_sid:
        if asl["search_type"] == "alert_sid" and e["alert"]["signature_id"] == asl["match"]:
+           alert_sid_match = True
            entry_present = False
            if len(alert_stack) >= alert_stack_limit:
                alert_stack.pop(0)
@@ -221,6 +307,44 @@ def alert_check_search_list(e):
                print "alert not found searching existing logs adding to alert stack %s" % (e)
            alert_stack.append(e)
 
+    #Give static sids priority over RE matches. If we match we should hit the alert stack hash.
+    if not alert_sid_match:
+        for asl in alert_search_list_msg_re:
+            if asl["search_type"] == "alert_msg_re" and asl["cmatch"].search(e["alert"]["signature"]) != None:
+                entry_present = False
+                print "REGEX alert MSG Match %s matchs %s" % (e["alert"]["signature"],asl["match"])
+                if len(alert_stack) >= alert_stack_limit:
+                    alert_stack.pop(0)
+                if asl["hash_type"] == "hash4":
+                    e["hash4"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"]) + e["src_port"] + e["dest_port"]
+                    for centry in alert_stack:
+                        if centry.has_key("hash4") and e["hash4"] == centry["hash4"]:
+                            entry_present == True
+                elif asl["hash_type"] == "haship":
+                    e["haship"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"])
+                    for centry in alert_stack:
+                         if centry.has_key("haship") and e["haship"] == centry["haship"]:
+                             entry_present == True
+                else:
+                    print "not adding alert unknown hash type in %s" % (asl)
+                    continue
+
+                if entry_present:
+                   continue
+
+                e["send_method"] = asl["send_method"]
+                e["timeout"] = int(time.time()) + alert_stack_timeout
+
+                print "http search start %s" % (int(time.time()))
+                found = search_http_for_alert(e)
+                print "http search end %s" % (int(time.time()))
+                if found:
+                    e["fired"] = True
+                else:
+                    e["fired"] = False
+                    print "alert not found searching existing logs adding to alert stack %s" % (e)
+                alert_stack.append(e)
+
 #Start#
 print "Start time:%s" % (int(time.time()))
 try:
@@ -232,19 +356,58 @@ except Exception as e:
 
 #Parse alert_search_list
 if conf.has_key("alert_search_list"):
-    alert_search_list = conf["alert_search_list"]
+    for e in conf["alert_search_list"]:
+        if e["search_type"] == "alert_msg_re":
+            try:
+                e["cmatch"] = re.compile(e["match"])
+                alert_search_list_msg_re.append(e)  
+            except Exception as err:
+                print "failed to compile regex for re match %s" % (e)
+                sys.exit(1)
+        elif e["search_type"] == "alert_sid":
+            alert_search_list_sid.append(e)
 
+#wordlist gen
+if conf.has_key("wordlist"):
+    try:
+        WORDS=open(conf["wordlist"]).readlines()
+    except:
+        print "failed to get words from user specified list %s" % (conf["wordlist"])
+        sys.exit(1)
+else:
+    try:
+        print "trying default location of /etc/dictionaries-common/words"
+        WORDS=open("/etc/dictionaries-common/words").readlines()
+    except:
+        try:
+            print "trying default location of /usr/share/dict/words"
+            WORDS=open("/usr/share/dict/words").readlines()
+        except:
+            print "could not loading anything. See reqs. Until then, WORDS will consist of KillerKittens"
+            WORDS = ["KillerKittens"]
+            
 #Parse http_search_list
 if conf.has_key("http_search_list"):
     http_search_list = conf["http_search_list"]
 
-for e in http_search_list:
-    if e["search_type"] == "http_uri_re" or e["search_type"] == "http_referer_re" or e["search_type"] == "http_host_re":
-        try:
-            e["cmatch"] = re.compile(e["match"])
-        except Exception as err:
-            print "failed to compile regex for re match %s" % (e)
-            sys.exit(1)
+    for e in http_search_list:
+        if e["search_type"] == "http_uri_re" or e["search_type"] == "http_referer_re" or e["search_type"] == "http_host_re":
+            try:
+                e["cmatch"] = re.compile(e["match"])
+            except Exception as err:
+                print "failed to compile regex for re match %s" % (e)
+                sys.exit(1)
+
+#autofire blacklist
+if conf.has_key("autofire_blacklist"):
+    autofire_blacklist = conf["autofire_blacklist"]
+    for e in autofire_blacklist:
+        if e["search_type"] == "re":
+            try:
+                e["cmatch"] = re.compile(e["match"])
+            except Exception as err:
+                print "failed to compile regex for re match %s" % (e)
+                sys.exit(1)
 
 #http_stack_limit the number of lines we keep in buffer defaults to 100k
 if conf.has_key("http_stack_limit") and conf["http_stack_limit"]:

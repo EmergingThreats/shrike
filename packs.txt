@@ -1,0 +1,50 @@
+Dotka
+Metasploit
+HiMan
+WhiteHole
+2013-2551
+CVE-2013-3893
+Memory Corruption
+ DOL 
+Magnitude
+non JAR EXT matches various EKs
+Sibhost
+Sweet Orange
+gt 60char hex-ascii
+obfuscated URL Apr 10 2013
+Fiesta
+Sakura
+applet_ssv_validated
+HellSpawn
+FlimKit
+Angler
+NailedPack
+Lucky7
+Nuclear
+Astrum
+[Uu]nknown EK
+SofosFO
+Styx
+Impact
+Obfuscated With Allatori
+GonDadEK
+HiMan
+Goon
+SPL2
+Microsoft Internet Explorer Use After free
+BleedingLife
+Archie
+Malvertising[^\x2e]
+CollectGarbage
+RIG EK
+HeapSpray
+infinity
+Angler
+NuclearPack
+Cushion Redirection
+FlashPack
+click2play
+NullHole
+Sednit
+Job314
+Likely Evil XMLDOM Detection of Local File
