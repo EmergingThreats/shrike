@@ -96,11 +96,7 @@ def build_url_from_entry(hentry):
         else:
             build_url = build_url + hentry["dest_ip"]
 
-<<<<<<< HEAD
         if hentry["dest_port"] != 80:
-=======
-        if hentry["dest_port"] != "80":
->>>>>>> a1306e02bb18cf4a254f5b1e1c851bdef57cc8ab
             build_url = build_url + ":%s" % (hentry["dest_port"])
         build_url = build_url + hentry["http"]["url"]
         return build_url
@@ -286,11 +282,7 @@ def http_check_search_list(e):
                 else:
                     build_url = build_url + e["dest_ip"]
 
-<<<<<<< HEAD
                 if e["dest_port"] != 80:
-=======
-                if e["dest_port"] != "80":
->>>>>>> a1306e02bb18cf4a254f5b1e1c851bdef57cc8ab
                     build_url = build_url + ":%s" % (e["dest_port"])
                 build_url = build_url + e["http"]["url"]
                 print "autofiring url %s from http_search_list" % (build_url)
