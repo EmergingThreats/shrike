@@ -16,6 +16,7 @@ import urllib
 
 alert_search_list_sid = []
 alert_search_list_msg_re = []
+alert_search_ignore_sid = []
 http_search_list = []
 autofire_blacklist = []
 http_stack = []
@@ -24,9 +25,10 @@ alert_stack = []
 alert_stack_limit = 200
 alert_stack_timeout = 300
 buffer_full = False
-cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None}
+cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None, "do_custom":True, "options":None, "tags":None}
 googledoms = ["google.co.uk","google.com.ag","google.com.au","google.com.ar","google.com.br","google.ca","google.co.in","google.cn"]
 WORDS=[]
+cuckoo_server_list = []
 
 ################
 # Requires requests
@@ -94,7 +96,11 @@ def build_url_from_entry(hentry):
         else:
             build_url = build_url + hentry["dest_ip"]
 
+<<<<<<< HEAD
+        if hentry["dest_port"] != 80:
+=======
         if hentry["dest_port"] != "80":
+>>>>>>> a1306e02bb18cf4a254f5b1e1c851bdef57cc8ab
             build_url = build_url + ":%s" % (hentry["dest_port"])
         build_url = build_url + hentry["http"]["url"]
         return build_url
@@ -140,7 +146,6 @@ def gen_fake_bing():
 def target_prepend_gen(target):
     return None
 def target_append_gen(target):
-##### Referer Injection ############
 #    choice = random.randint(1,3)
 #    if choice == 1:
 #        fakeurl = "&SomeParam=" + gen_fake_google(target,False)
@@ -151,7 +156,7 @@ def target_append_gen(target):
 #    return fakeurl
     return None
 
-def autofire(target):
+def autofire(target,hentry,aentry):
     #see http://docs.python-requests.org/en/latest/ for requests
     if autofire_blacklist:
         for e in autofire_blacklist:
@@ -159,26 +164,46 @@ def autofire(target):
                 print "Not sending %s as it matches our autofire blacklist" % (target)
                 return 
     try:
-        if cuckoo_api["target_prepend"]:
-            target = cuckoo_api["target_prepend"] + target
+        for e in cuckoo_server_list: 
+            custom_string=None
+            if e["target_prepend"]:
+                target = e["target_prepend"] + target
 
-        else:
-            tprepend = target_prepend_gen(target)
-            if tprepend:
-                target = tprepend + target
+            else:
+                tprepend = target_prepend_gen(target)
+                if tprepend:
+                    target = tprepend + target
 
-        if cuckoo_api["target_append"]:
-            target = target + cuckoo_api["target_append"]
-        else:
-            tappend = target_append_gen(target)
-            if tappend:
-                target = target + tappend
+            if e["target_append"]:
+                target = target + e["target_append"]
+            else:
+                tappend = target_append_gen(target)
+                if tappend:
+                    target = target + tappend
 
-        data=dict(url=target)
-        response = requests.post(cuckoo_api["url"], auth=(cuckoo_api["user"],cuckoo_api["pass"]), data=data, proxies=cuckoo_api["proxies"], verify=cuckoo_api["verifyssl"])
-        print response
-    except Exception as e:
-        print "failed to send target:%s reason:%s" % (target,e)
+            #send ifnormation about the rule hit and http entries
+            if e["do_custom"]:
+                custom_string = "shrike: %s,%s,%s" % (aentry["alert"]["signature_id"],aentry["alert"]["signature"],build_url_from_entry(hentry))
+            if hentry["http"].has_key("http_refer") and hentry["http"]["http_refer"]:
+                custom_string = "%s,referer:%s" % (custom_string,hentry["http"]["http_refer"]) 
+
+            #specify options if present
+            if e["options"]:
+                options_string=e["options"]
+            else:
+                options_string=None
+
+            #specify tags if present
+            if e["tags"]:
+                tags_string=e["tags"]
+            else:
+                tags_string=None
+
+            data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string)
+            response = requests.post(e["url"], auth=(e["user"],e["pass"]), data=data, proxies=e["proxies"], verify=e["verifyssl"])
+            print response
+    except Exception as err:
+        print "failed to send target:%s reason:%s" % (target,err)
 
 def search_http_for_alert(e):
     try:
@@ -198,20 +223,20 @@ def search_http_for_alert(e):
                     if hentry["http"]["hostname"] != url.hostname:
                         if e["send_method"] == "referer":
                             print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
-                            autofire(hentry["http"]["http_refer"])
+                            autofire(hentry["http"]["http_refer"],hentry,e)
                             return match_found
                         elif e["send_method"] == "landing":
                             fire = build_url_from_entry(hentry)
                             if fire != None:
                                 print "autofiring %s from search_http_for_alert" % (fire)
-                                autofire(fire)
+                                autofire(fire,hentry,e)
                                 return match_found
 
                 elif e["send_method"] == "url" and hentry["http"].has_key("url"):
                     fire = build_url_from_entry(hentry)
                     if fire != None:
                         print "autofiring %s from search_http_for_alert" % (fire)
-                        autofire(fire)
+                        autofire(fire,hentry,e)
                         return match_found
 
     except Exception as e:
@@ -253,7 +278,7 @@ def http_check_search_list(e):
         if match_found:       
             if sle["send_method"] == "referer" and e["http"].has_key("http_refer"):
                 print "autofiring referer %s from http_search_list" % (e["http"]["http_refer"])
-                autofire(e["http"]["http_refer"])
+                autofire(e["http"]["http_refer"],e,sle)
             elif sle["send_method"] == "url" and e["http"].has_key("url"):
                 build_url = "http://"
                 if e["http"].has_key("hostname"):
@@ -261,11 +286,15 @@ def http_check_search_list(e):
                 else:
                     build_url = build_url + e["dest_ip"]
 
+<<<<<<< HEAD
+                if e["dest_port"] != 80:
+=======
                 if e["dest_port"] != "80":
+>>>>>>> a1306e02bb18cf4a254f5b1e1c851bdef57cc8ab
                     build_url = build_url + ":%s" % (e["dest_port"])
                 build_url = build_url + e["http"]["url"]
                 print "autofiring url %s from http_search_list" % (build_url)
-                autofire(build_url)
+                autofire(build_url,e,sle)
     return match_found
 
 def alert_check_search_list(e):
@@ -366,7 +395,8 @@ if conf.has_key("alert_search_list"):
                 sys.exit(1)
         elif e["search_type"] == "alert_sid":
             alert_search_list_sid.append(e)
-
+        elif e["search_type"] == "alert_sid_ignore":
+            alert_search_ignore_sid.append(e["match"])
 #wordlist gen
 if conf.has_key("wordlist"):
     try:
@@ -421,42 +451,87 @@ if conf.has_key("alert_stack_timeout") and conf["alert_stack_timeout"]:
 if conf.has_key("alert_stack_limit") and conf["alert_stack_limit"]:
     alert_stack_limit = conf["alert_stack_limit"]
 
-#get settings for cuckoo_api url
-if conf.has_key("cuckoo_api"):
-    if conf["cuckoo_api"].has_key("url"):
-        cuckoo_api["url"] = conf["cuckoo_api"]["url"]
-    else:
-        print "You must specify a url setting in the cuckoo_api portion of the config"
-        sys.exit(1)
+#cuckoo config
+if conf.has_key("cuckoo_server_list"):
+    for e in conf["cuckoo_server_list"]:
+        tmpd = {}
+        
+        #cuckoo server name
+        if e.has_key("label"):
+            tmpd["label"] = e["label"]
+        else:
+            print "You must specify a label in the cuckoo_server_list portion of the config"
+            sys.exit(1)
 
-    #do or do not perform ssl verification. There is no try
-    if conf["cuckoo_api"].has_key("verifyssl") and conf["cuckoo_api"]["verifyssl"] == 1:
-        cuckoo_api["verifyssl"] = True 
-    #basic auth stuff
-    if conf["cuckoo_api"].has_key("user") and not conf["cuckoo_api"].has_key("pass"): 
-        print "basic auth user specified but no password"
-        sys.exit(1)
-    elif conf["cuckoo_api"].has_key("pass") and not conf["cuckoo_api"].has_key("user"):
-        print "basic auth pass specified but no user"
-        sys.exit(1)
-    elif conf["cuckoo_api"].has_key("user") and conf["cuckoo_api"]["user"] and conf["cuckoo_api"].has_key("pass") and conf["cuckoo_api"]["pass"]:
-        cuckoo_api["user"] = conf["cuckoo_api"]["user"]
-        cuckoo_api["pass"] = conf["cuckoo_api"]["pass"]
-    #proxy
-    if conf["cuckoo_api"].has_key("proxies") and conf["cuckoo_api"]["proxies"]:
-        cuckoo_api["proxies"] = conf["cuckoo_api"]["proxies"]
+        #url to the cuckoo instance
+        if e.has_key("url"):
+            tmpd["url"] = e["url"]
+        else:
+            print "You must specify a url setting in the cuckoo_api portion of the config"
+            sys.exit(1)
 
-    #if specified prepend something to the target uri
-    if conf["cuckoo_api"].has_key("target_prepend"):
-        cuckoo_api["target_prepend"] = conf["cuckoo_api"]["target_prepend"]
+        #do or do not perform ssl verification. There is no try
+        if e.has_key("verifyssl") and e["verifyssl"] == 1:
+             tmpd["verifyssl"] = True
+        else:
+             tmpd["verifyssl"] = cuckoo_api["verifyssl"]
 
-    #if specified append something to the target uri
-    if conf["cuckoo_api"].has_key("target_append"):
-        cuckoo_api["target_append"] = conf["cuckoo_api"]["target_append"]
+        #basic auth stuff
+        if e.has_key("user") and not e.has_key("pass"): 
+            print "basic auth user specified but no password"
+            sys.exit(1)
+        elif e.has_key("pass") and not e.has_key("user"):
+            print "basic auth pass specified but no user"
+            sys.exit(1)
+        elif e.has_key("user") and e["user"] and e.has_key("pass") and e["pass"]:
+             tmpd["user"] = e["user"]
+             tmpd["pass"] = e["pass"]
+        else:
+             tmpd["user"]=cuckoo_api["user"]
+             tmpd["pass"]=cuckoo_api["pass"]
+        
+        #proxy
+        if e.has_key("proxies") and e["proxies"]:
+            tmpd["proxies"] = e["proxies"]
+        else:
+            tmpd["proxies"] = cuckoo_api["proxies"]
 
+        #if specified prepend something to the target uri
+        if e.has_key("target_prepend"):
+            tmpd["target_prepend"] = e["target_prepend"]
+        else:
+            tmpd["target_prepend"] = cuckoo_api["target_prepend"]
+
+        #if specified append something to the target uri
+        if e.has_key("target_append"):
+            tmpd["target_append"] = e["target_append"]
+        else:
+            tmpd["target_append"] = cuckoo_api["target_append"]
+
+        #do or do not perform ssl verification. There is no try
+        if e.has_key("do_custom") and e["do_custom"] == 1:
+             tmpd["do_custom"] = True
+        else:
+             tmpd["do_custom"] = cuckoo_api["do_custom"]
+
+        #cuckoo options
+        if e.has_key("options"):
+            tmpd["options"] = e["options"]
+        else:
+            tmpd["options"] = cuckoo_api["options"]
+
+        #cuckoo options
+        if e.has_key("tags"):
+            tmpd["tags"] = e["tags"]
+        else:
+            tmpd["tags"] = cuckoo_api["tags"]
+        
+        cuckoo_server_list.append(tmpd)
+    
 else:
-   print "did not find cuckoo_api key bailing"
+   print "did not find cuckoo_server_list key bailing"
    sys.exit(1)
+
 #Get path to eve file and make sure it exists
 if conf.has_key("eve_file"):
    if not os.path.exists(conf["eve_file"]):
@@ -495,21 +570,22 @@ for line in tailer.follow(open(conf["eve_file"])):
                             print ("hash match %s and %s" % (a,e))
                             if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
                                 print "autofiring entry found after alert %s " % (e["http"]["http_refer"])
-                                autofire(e["http"]["http_refer"])
+                                autofire(e["http"]["http_refer"],e,a)
                                 a["fired"] = True
                     elif a.has_key("haship"):
                         if e["haship"] == a["haship"] and a["fired"] == False:
                             print ("hash match %s and %s" % (a,e))
                             if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
                                 print "autofiring entry after alert %s" % (e["http"]["http_refer"])
-                                autofire(e["http"]["http_refer"])
+                                autofire(e["http"]["http_refer"],e,a)
                                 a["fired"] = True
                     else:
                             alert_stack.remove(a)
 
         if e["event_type"] == "alert":
             try:
-                alert_check_search_list(e)     
+                if e["alert"]["signature_id"] not in alert_search_ignore_sid:
+                    alert_check_search_list(e)     
             except Exception as err:
                 print "failed to run alert_check_search %s" % (err)
 

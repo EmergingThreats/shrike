@@ -1,50 +1,93 @@
 Dotka
-Metasploit
-HiMan
-WhiteHole
-2013-2551
-CVE-2013-3893
 Memory Corruption
- DOL 
-Magnitude
 non JAR EXT matches various EKs
-Sibhost
-Sweet Orange
 gt 60char hex-ascii
 obfuscated URL Apr 10 2013
-Fiesta
 Sakura
-applet_ssv_validated
-HellSpawn
 FlimKit
-Angler
-NailedPack
-Lucky7
-Nuclear
-Astrum
 [Uu]nknown EK
-SofosFO
 Styx
 Impact
 Obfuscated With Allatori
-GonDadEK
-HiMan
-Goon
-SPL2
 Microsoft Internet Explorer Use After free
-BleedingLife
-Archie
-Malvertising[^\x2e]
 CollectGarbage
-RIG EK
-HeapSpray
-infinity
+2013-3893
+CVE-2013-3918
+Generic\sHeapSpray\sConstruct
+Generic\sJava\sRhino\sScripting
+Cushion\sRedirection
+Linux\/Onimiki DNS
+Evil\sEK\sRedirector\sCookie
+2013\-2551
+ScanBox
+Metasploit
+Archie
+Sweet\s*?Orange
+Zuponcic
+Fiesta
+Nuclear
+Flash[Pp]ack
+Job314
+Astrum
+CottonCastle
+Magnitude
+HanJuan
+Malvertising\s*?EK
+LightsOut
+Bleeding\s*(Life|EK)
 Angler
-NuclearPack
-Cushion Redirection
-FlashPack
-click2play
+RIG\s
+[Gg]oon
+XMLDOM
+32-byte\s*?by\s*?32-byte
+Malicious\sRedirect\s8x8\sscript\stag
+[sS]ty[xX]
+Unknown_MM EK
+Topic EK
+Unknown_gmf
+Rawin
+Lucky7
+HellSpawn
+[Uu]nknown EK
+NailedPack
+[Gg]rand[Ss]oft
+[sS]ofos[fF][oO]
+SPL2 EK
+EL8 EK
+Gongda
+Gon[dD]ad
 NullHole
 Sednit
+Neutrino
+[Ss]akura
+\sDOL\s
+Java7 Exploit Class Request
+SNET EK
+Click To Run Bypass
+[Ww]atering\s*?[Hhole]
+2011-1255
+HiMan EK
+Unknown Malvertising Related EK
+WhiteLotus
+SibHost
+Grand[Ss]oft
+SofosFO
+Leading to EK
+2014-0322
+2012-4792
+2012-1876
+2012-1880
+2012-4969
+2013-2465
+2013-2465
+2014-1776
+2013-247[1-3]
 Job314
-Likely Evil XMLDOM Detection of Local File
+CVE-2013-1347
+click2play\bypass
+Suspicious\sPossible\sCollectGarbage\sin\sbase64
+ssv_validated
+KaiXin
+CVE-2014-6332
+2012-1889
+2013-3897
