@@ -51,7 +51,7 @@
         {
             "search_type": "alert_sid", 
             "hash_type": "hash4", 
-            "send_method": "landing", 
+            "send_method": "referer", 
             "match": 2017552
         }, 
         {
@@ -245,6 +245,32 @@
             "match": 2019950
         },
         {
+            "search_type": "alert_sid_ignore",
+            "match": 2018275 
+        },
+        {
+            "search_type": "alert_sid_ignore",
+            "match": 2018276
+        },
+        {
+            "search_type": "alert_sid_ignore",
+            "match": 2020093
+        },
+        {
+            "search_type": "alert_sid_ignore",
+            "match": 2011974
+        },
+        {
+            "search_type": "alert_sid_ignore",
+            "match": 2018580
+        },
+        {
+            "search_type": "dest_ip",
+            "hash_type": "hash4",
+            "send_method": "url",
+            "match": "195.20.141.10"
+        },
+        {
             "search_type": "alert_msg_re",
             "hash_type": "haship",
             "send_method": "referer",
@@ -259,14 +285,8 @@
         {
             "search_type": "alert_msg_re",
             "hash_type": "haship",
-            "send_method": "url",
-            "match": "Archie EK (?:T2 )?Landing"
-        },
-        {
-            "search_type": "alert_msg_re",
-            "hash_type": "haship",
             "send_method": "landing",
-            "match": "(?:M(?:a(?:l(?:icious\\sRedirect\\s8x8\\sscript\\stag|vertising\\s*?EK)|gnitude)|icrosoft Internet Explorer Use After free|e(?:mory Corruption|tasploit))|S(?:uspicious\\sPossible\\sCollectGarbage\\sin\\sbase64|(?:ibHos|edni)t|(?:NET|PL2) EK|weet\\s*?Orange|(?:canBo|ty)x|ofosFO|akura)|C(?:VE-201(?:3-(?:1347|3918)|4-6332)|o(?:llectGarbag|ttonCastl)e|ushion\\sRedirection|lick To Run Bypass)|201(?:3-(?:2(?:4(?:7[1-3]|65)|551)|389[37])|2-(?:18(?:8[09]|76)|4(?:792|969))|4-(?:0322|1776)|1-1255)|G(?:eneric\\s(?:Java\\sRhino\\sScripting|HeapSpray\\sConstruct)|on(?:[dD]ad|gda)|rand[Ss]oft)|(?:non JAR EXT matches various EK|click2play\\sbypas|WhiteLotu)s|L(?:i(?:nux\\\/Onimiki DNS|ghtsOut)|eading to EK|ucky7)|Unknown(?: Malvertising Related EK|_(?:MM EK|gmf))|(?:Obfuscated With Allator|gt 60char hex-asci)i|N(?:u(?:llHole|clear)|ailedPack|eutrino)|E(?:vil\\sEK\\sRedirector\\sCookie|L8 EK)|J(?:ava7 Exploit Class Request|ob314)|F(?:l(?:ash[Pp]ack|imKit)|iesta)|H(?:(?:ellSpaw|anJua)n|iMan EK)|[sS](?:ofos[fF][oO]|ty[xX])|obfuscated URL Apr 10 2013|32-byte\\s*?by\\s*?32-byte|(?:[Uu]nknown|Topic) EK|[Gg](?:rand[Ss]oft|oon)|A(?:ngler|rchie|strum)|[Ww]atering\\s*?[Hhole]|Bleeding\\s*(Life|EK)|(?:[Ss]akur|Dotk)a|R(?:IG\\s|awin)|ssv_validated|Zuponcic|\\sDOL\\s|Impact|KaiXin|XMLDOM)"
+            "match": "(?:M(?:a(?:l(?:icious\\sRedirect\\s8x8\\sscript\\stag|vertising\\s*?EK)|gnitude)|icrosoft Internet Explorer Use After free|e(?:mory Corruption|tasploit))|S(?:uspicious\\sPossible\\sCollectGarbage\\sin\\sbase64|(?:ibHos|edni)t|(?:NET|PL2) EK|weet\\s*?Orange|(?:canBo|ty)x|ofosFO|akura)|C(?:VE-201(?:3-(?:1347|3918)|4-6332)|o(?:llectGarbag|ttonCastl)e|ushion\\sRedirection|lick To Run Bypass)|201(?:3-(?:2(?:4(?:7[1-3]|65)|551)|389[37])|2-(?:18(?:8[09]|76)|4(?:792|969))|4-(?:0322|1776)|1-1255)|G(?:eneric\\s(?:Java\\sRhino\\sScripting|HeapSpray\\sConstruct)|on(?:[dD]ad|gda)|rand[Ss]oft)|(?:non JAR EXT matches various EK|click2play\\sbypas|WhiteLotu)s|L(?:i(?:nux\\\/Onimiki DNS|ghtsOut)|eading to EK|ucky7)|Unknown(?: Malvertising Related EK|_(?:MM EK|gmf))|(?:Obfuscated With Allator|gt 60char hex-asci)i|N(?:u(?:llHole|clear)|ailedPack|eutrino)|E(?:vil\\sEK\\sRedirector\\sCookie|L8 EK)|J(?:ava7 Exploit Class Request|ob314)|F(?:l(?:ash[Pp]ack|imKit)|iesta)|H(?:(?:ellSpaw|anJua)n|iMan EK)|[sS](?:ofos[fF][oO]|ty[xX])|obfuscated URL Apr 10 2013|32-byte\\s*?by\\s*?32-byte|(?:[Uu]nknown|Topic) EK|[Gg](?:rand[Ss]oft|oon)|A(?:ngler|strum)|[Ww]atering\\s*?[Hhole]|Bleeding\\s*(Life|EK)|(?:[Ss]akur|Dotk)a|R(?:IG\\s|awin)|ssv_validated|Zuponcic|\\sDOL\\s|Impact|KaiXin|XMLDOM)"
         }
     ],
     "http_search_list": [
@@ -285,25 +305,16 @@
     "cuckoo_server_list":[
         { 
             "label": "cuckoo1",
-            "url": "https://some.cuckoo.lan:8443/tasks/create/url",
-            "user": "user",
-            "pass": "pass",
-            "verifyssl": 0
-        },
-        {
-            "label": "cuckoo2",
-            "url": "https://some.cuckoo2.lan:8443/tasks/create/url",
-            "proxies": {
-                "http": "192.168.1.1:3128",
-                "https": "192.168.1.1:3128"
-            },
+            "url": "https://some.cuckoo.server:8443/tasks/create/url",
             "user": "user",
             "pass": "pass",
             "verifyssl": 0
         }
     ],
-    "eve_file": "/usr/local/suricata/eve.json",
-    "http_stack_limit": 10000,
+    "eve_file": "/usr/local/suricata/var/log/eve.json",
+    "log_file": "/var/log/shrike.log",
+    "http_stack_limit": 100000,
     "alert_stack_limit": 200,
-    "alert_stack_timeout": 300
+    "alert_stack_timeout": 300,
+    "scrub_ip_addys": 1
 }

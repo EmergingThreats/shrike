@@ -13,6 +13,8 @@ import urlparse
 import random
 import string
 import urllib
+from Queue import Queue
+from threading import Thread
 
 alert_search_list_sid = []
 alert_search_list_msg_re = []
@@ -27,9 +29,13 @@ alert_stack_timeout = 300
 buffer_full = False
 cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None, "do_custom":True, "options":None, "tags":None}
 googledoms = ["google.co.uk","google.com.ag","google.com.au","google.com.ar","google.com.br","google.ca","google.co.in","google.cn"]
+ipre_default=re.compile(r"\b(?P<ip>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\b")
+scrub_ipaddys = False
 WORDS=[]
 cuckoo_server_list = []
-
+log_queue = Queue()
+do_logging = False
+log_file = None
 ################
 # Requires requests
 # pip install requests
@@ -103,6 +109,25 @@ def build_url_from_entry(hentry):
     else:
         return None
 
+def gen_random_ip():
+    return "%s.%s.%s.%s" % (random.choice(range(1,256)),random.choice(range(256)),random.choice(range(256)),random.choice(range(1,255)))
+
+#This can break stuff in default mode you should specify something other than the default ipre
+def ip_scrubber(url):
+    reobj = ipre_default
+    try:
+        p=urlparse.urlparse(url)
+        m=reobj.sub(gen_random_ip(),p[4])
+        if m:
+            utuple=(p[0],p[1],p[2],p[3],m,p[5])
+            new_url=urlparse.urlunparse(utuple)
+            return new_url
+        else:
+            return url
+    except Exception as e:
+        print "Problem Scrubbing ip Address"
+        return url
+
 def random_alpha_numeric(len):
     return ''.join(random.choice(string.ascii_uppercase + string.ascii_lowercase + string.digits) for i in range(len))
 def random_alpha_numeric_upper(len):
@@ -158,7 +183,10 @@ def autofire(target,hentry,aentry):
         for e in autofire_blacklist:
             if e["cmatch"].search(target) != None:
                 print "Not sending %s as it matches our autofire blacklist" % (target)
-                return 
+                return
+    if scrub_ipaddys:
+        target = ip_scrubber(target)
+
     try:
         for e in cuckoo_server_list: 
             custom_string=None
@@ -179,9 +207,17 @@ def autofire(target,hentry,aentry):
 
             #send ifnormation about the rule hit and http entries
             if e["do_custom"]:
-                custom_string = "shrike: %s,%s,%s" % (aentry["alert"]["signature_id"],aentry["alert"]["signature"],build_url_from_entry(hentry))
+                if scrub_ipaddys:
+                    hurl = ip_scrubber(build_url_from_entry(hentry))
+                else:
+                    hurl = build_url_from_entry(hentry)
+                custom_string = "shrike: %s,%s,%s" % (aentry["alert"]["signature_id"],aentry["alert"]["signature"],hurl)
             if hentry["http"].has_key("http_refer") and hentry["http"]["http_refer"]:
-                custom_string = "%s,referer:%s" % (custom_string,hentry["http"]["http_refer"]) 
+                if scrub_ipaddys:
+                    refurl = ip_scrubber(hentry["http"]["http_refer"])
+                else:
+                    refurl = hentry["http"]["http_refer"]
+                custom_string = "%s,referer:%s" % (custom_string,refurl) 
 
             #specify options if present
             if e["options"]:
@@ -197,7 +233,6 @@ def autofire(target,hentry,aentry):
 
             data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string)
             response = requests.post(e["url"], auth=(e["user"],e["pass"]), data=data, proxies=e["proxies"], verify=e["verifyssl"])
-            print response
     except Exception as err:
         print "failed to send target:%s reason:%s" % (target,err)
 
@@ -214,17 +249,29 @@ def search_http_for_alert(e):
 
             if match_found:
                 print ("hash match %s and %s" % (hentry,e))
-                if (e["send_method"] == "referer" or e["send_method"] == "landing") and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"]:
+                tstamp=hentry["timestamp"]
+                if e.has_key("http_matches"):
+                   if e["http_matches"].has_key(tstamp):
+                       continue
+                   else:
+                       e["http_matches"][tstamp]=hentry.copy()
+                else:
+                    e["http_matches"]={}
+                    e["http_matches"][tstamp]=hentry.copy()
+   
+                if(e["send_method"] == "referer" or e["send_method"] == "landing") and hentry["http"].has_key("http_refer") and hentry["http"].has_key("hostname") and hentry["http"]["hostname"]:
                     url = urlparse.urlsplit(hentry["http"]["http_refer"])
                     if hentry["http"]["hostname"] != url.hostname:
                         if e["send_method"] == "referer":
                             print "autofiring %s from search_http_for_alert" % (hentry["http"]["http_refer"])
+                            e["fired_url"] = hentry["http"]["http_refer"]
                             autofire(hentry["http"]["http_refer"],hentry,e)
                             return match_found
                         elif e["send_method"] == "landing":
                             fire = build_url_from_entry(hentry)
                             if fire != None:
                                 print "autofiring %s from search_http_for_alert" % (fire)
+                                e["fired_url"]=fire
                                 autofire(fire,hentry,e)
                                 return match_found
 
@@ -232,11 +279,13 @@ def search_http_for_alert(e):
                     fire = build_url_from_entry(hentry)
                     if fire != None:
                         print "autofiring %s from search_http_for_alert" % (fire)
+                        e["fired_url"]=fire  
                         autofire(fire,hentry,e)
                         return match_found
 
     except Exception as e:
         print "Exception resolving alert to url %s " % (e)
+        print 'Error on line {}'.format(sys.exc_info()[-1].tb_lineno)
         return False 
     return match_found
 
@@ -274,6 +323,7 @@ def http_check_search_list(e):
         if match_found:       
             if sle["send_method"] == "referer" and e["http"].has_key("http_refer"):
                 print "autofiring referer %s from http_search_list" % (e["http"]["http_refer"])
+                sle["fired_url"]=e["http"]["http_refer"]
                 autofire(e["http"]["http_refer"],e,sle)
             elif sle["send_method"] == "url" and e["http"].has_key("url"):
                 build_url = "http://"
@@ -286,6 +336,7 @@ def http_check_search_list(e):
                     build_url = build_url + ":%s" % (e["dest_port"])
                 build_url = build_url + e["http"]["url"]
                 print "autofiring url %s from http_search_list" % (build_url)
+                sle["fired_url"] = build_url
                 autofire(build_url,e,sle)
     return match_found
 
@@ -529,57 +580,91 @@ if conf.has_key("eve_file"):
    if not os.path.exists(conf["eve_file"]):
        print "specified eve file does not exist %s" % (conf["eve_file"])
        sys.exit(1) 
-else:
-    print "No eve file specified with 'eve_file' key in config"
-    sys.exit(1)
+
+#Get path to log file and make sure it exists
+if conf.has_key("log_file"):
+    try:
+        do_logging = True
+        log_file = open(conf["log_file"],"a")
+    except:
+        print "could not open log file %s" % (conf["log_file"])
+        sys.exit(1)
+
+#Scrub ip addresses from url string
+if conf.has_key("scrub_ip_addys") and conf["scrub_ip_addys"] == 1 :
+    scrub_ipaddys = True
+
+def ProcessLOG(q):
+    while True:
+        line = q.get()
+        try:
+            e = json.loads(line)
+            global http_stack
+            global http_stack_limit
+            global http_search_list
+            global alert_stack
+            global buffer_full
+            global log_file
+            global do_logging
+
+            if e["event_type"] == "http":
+                if len(http_stack) >= http_stack_limit:
+                    if buffer_full == False:
+                        print "HTTP Buffer Full: %s" % (int(time.time()))
+                        buffer_full = True
+                    http_stack.pop(0)
+                e["hash4"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"]) + e["src_port"] + e["dest_port"]
+                e["haship"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"])
+                if e["http"].has_key("hostname") and e["http"]["hostname"]:
+                    e["hashsipdom"]=ip_to_uint32(e["src_ip"]) + hash(e["http"]["hostname"])
+                http_stack.append(e)
+
+                if http_search_list:
+                    try:
+                        http_check_search_list(e)
+                    except Exception as err:
+                        print "failed to run http_entry_search %s" % (err)
+
+                if len(alert_stack) > 0:
+                    for a in alert_stack[:]:
+                        if a["timeout"] < int(time.time()):
+                            print "removing alert with hash %s due to timeout" % (a)
+                            if do_logging and log_file:
+                                json.dump(a,log_file)
+                                log_file.write("\n")
+                            alert_stack.remove(a)
+                        elif a.has_key("hash4"):
+                            if e["hash4"] == a["hash4"] and a["fired"] == False:
+                                print ("hash match %s and %s" % (a,e))
+                                if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
+                                    print "autofiring entry found after alert %s " % (e["http"]["http_refer"])
+                                    a["fired_url"]=e["http"]["http_refer"]
+                                    autofire(e["http"]["http_refer"],e,a)
+                                    a["fired"] = True
+                        elif a.has_key("haship"):
+                            if e["haship"] == a["haship"] and a["fired"] == False:
+                                print ("hash match %s and %s" % (a,e))
+                                if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
+                                    print "autofiring entry after alert %s" % (e["http"]["http_refer"])
+                                    a["fired_url"] = e["http"]["http_refer"]
+                                    autofire(e["http"]["http_refer"],e,a)
+                                    a["fired"] = True
+                        else:
+                                alert_stack.remove(a)
+
+            if e["event_type"] == "alert":
+                try:
+                    if e["alert"]["signature_id"] not in alert_search_ignore_sid:
+                        alert_check_search_list(e)
+                except Exception as err:
+                    print "failed to run alert_check_search %s" % (err)
+        except Exception as e:
+            print "Exception parsing line %s:\n%s\n%s" % (e,line,sys.exc_info()[-1].tb_lineno)
+
+worker = Thread(target=ProcessLOG, args=(log_queue,))
+worker.daemon = True
+worker.start()
 
 for line in tailer.follow(open(conf["eve_file"])):
-    try:
-        e = json.loads(line)
-        if e["event_type"] == "http":
-            if len(http_stack) >= http_stack_limit:
-                if buffer_full == False:
-                    print "HTTP Buffer Full: %s" % (int(time.time()))
-                    buffer_full = True
-                http_stack.pop(0)
-            e["hash4"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"]) + e["src_port"] + e["dest_port"]
-            e["haship"] = ip_to_uint32(e["dest_ip"]) + ip_to_uint32(e["src_ip"]) 
-            http_stack.append(e)
+    log_queue.put(line)
 
-            if http_search_list:
-                try:
-                    http_check_search_list(e)
-                except Exception as err:
-                    print "failed to run http_entry_search %s" % (err)
-
-            if len(alert_stack) > 0:
-                for a in alert_stack[:]:
-                    if a["timeout"] < int(time.time()):
-                        print "removing alert with hash %s due to timeout" % (a)
-                        alert_stack.remove(a)
-                    elif a.has_key("hash4"):
-                        if e["hash4"] == a["hash4"] and a["fired"] == False:
-                            print ("hash match %s and %s" % (a,e))
-                            if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
-                                print "autofiring entry found after alert %s " % (e["http"]["http_refer"])
-                                autofire(e["http"]["http_refer"],e,a)
-                                a["fired"] = True
-                    elif a.has_key("haship"):
-                        if e["haship"] == a["haship"] and a["fired"] == False:
-                            print ("hash match %s and %s" % (a,e))
-                            if e["http"].has_key("http_refer") and e["http"].has_key("hostname") and e["http"]["hostname"] not in e["http"]["http_refer"]:
-                                print "autofiring entry after alert %s" % (e["http"]["http_refer"])
-                                autofire(e["http"]["http_refer"],e,a)
-                                a["fired"] = True
-                    else:
-                            alert_stack.remove(a)
-
-        if e["event_type"] == "alert":
-            try:
-                if e["alert"]["signature_id"] not in alert_search_ignore_sid:
-                    alert_check_search_list(e)     
-            except Exception as err:
-                print "failed to run alert_check_search %s" % (err)
-
-    except Exception as e:
-        print "Exception parsing line %s:\n%s\n%s" % (e,line,sys.exc_info()[-1].tb_lineno)
