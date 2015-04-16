@@ -43,6 +43,24 @@
             "match": 2018145 
         },
         {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2020893 
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2020894
+        },
+        {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "referer",
+            "match": 2020896 
+        },
+        {
             "search_type": "alert_sid", 
             "hash_type": "hash4", 
             "send_method": "url", 
@@ -241,6 +259,12 @@
             "match": 2018442 
         },
         {
+            "search_type": "alert_sid",
+            "hash_type": "haship",
+            "send_method": "landing",
+            "match": 2020854 
+        },
+        {
             "search_type": "alert_sid_ignore",
             "match": 2019950
         },
@@ -263,6 +287,10 @@
         {
             "search_type": "alert_sid_ignore",
             "match": 2018580
+        },
+        {
+            "search_type": "alert_sid_ignore",
+            "match": 2020698
         },
         {
             "search_type": "dest_ip",
@@ -308,7 +336,8 @@
             "url": "https://some.cuckoo.server:8443/tasks/create/url",
             "user": "user",
             "pass": "pass",
-            "verifyssl": 0
+            "verifyssl": 0,
+            "do_custom": 0
         }
     ],
     "eve_file": "/usr/local/suricata/var/log/eve.json",

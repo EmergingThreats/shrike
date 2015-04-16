@@ -27,7 +27,7 @@ alert_stack = []
 alert_stack_limit = 200
 alert_stack_timeout = 300
 buffer_full = False
-cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None, "do_custom":True, "options":None, "tags":None}
+cuckoo_api = {"proxies": None, "user": None, "pass": None, "verifyssl": False, "target_append": None, "target_prepend": None, "do_custom":True, "do_shrike_vars":True, "options":None, "tags":None}
 googledoms = ["google.co.uk","google.com.ag","google.com.au","google.com.ar","google.com.br","google.ca","google.co.in","google.cn"]
 ipre_default=re.compile(r"\b(?P<ip>((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))\b")
 scrub_ipaddys = False
@@ -190,6 +190,11 @@ def autofire(target,hentry,aentry):
     try:
         for e in cuckoo_server_list: 
             custom_string=None
+            shrike_sid = None
+            shrike_msg = None
+            shrike_url = None
+            shrike_refer = None            
+
             if e["target_prepend"]:
                 target = e["target_prepend"] + target
 
@@ -212,12 +217,20 @@ def autofire(target,hentry,aentry):
                 else:
                     hurl = build_url_from_entry(hentry)
                 custom_string = "shrike: %s,%s,%s" % (aentry["alert"]["signature_id"],aentry["alert"]["signature"],hurl)
-            if hentry["http"].has_key("http_refer") and hentry["http"]["http_refer"]:
-                if scrub_ipaddys:
-                    refurl = ip_scrubber(hentry["http"]["http_refer"])
-                else:
-                    refurl = hentry["http"]["http_refer"]
-                custom_string = "%s,referer:%s" % (custom_string,refurl) 
+                if hentry["http"].has_key("http_refer") and hentry["http"]["http_refer"]:
+                    if scrub_ipaddys:
+                        refurl = ip_scrubber(hentry["http"]["http_refer"])
+                    else:
+                        refurl = hentry["http"]["http_refer"]
+                    custom_string = "%s,referer:%s" % (custom_string,refurl) 
+
+            #shrike 
+            if e["do_shrike_vars"]:
+                shrike_sid = aentry["alert"]["signature_id"]
+                shrike_msg = aentry["alert"]["signature"]
+                shrike_url = build_url_from_entry(hentry)
+                if hentry["http"].has_key("http_refer") and hentry["http"]["http_refer"]:
+                    shrike_refer = "%s" % (hentry["http"]["http_refer"])
 
             #specify options if present
             if e["options"]:
@@ -230,8 +243,7 @@ def autofire(target,hentry,aentry):
                 tags_string=e["tags"]
             else:
                 tags_string=None
-
-            data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string)
+            data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string,shrike_sid=shrike_sid,shrike_refer=shrike_refer,shrike_msg=shrike_msg,shrike_url=shrike_url)
             response = requests.post(e["url"], auth=(e["user"],e["pass"]), data=data, proxies=e["proxies"], verify=e["verifyssl"])
     except Exception as err:
         print "failed to send target:%s reason:%s" % (target,err)
@@ -554,8 +566,17 @@ if conf.has_key("cuckoo_server_list"):
         #do or do not perform ssl verification. There is no try
         if e.has_key("do_custom") and e["do_custom"] == 1:
              tmpd["do_custom"] = True
+        elif e.has_key("do_custom") and e["do_custom"] != 1:
+             tmpd["do_custom"] = False
         else:
              tmpd["do_custom"] = cuckoo_api["do_custom"]
+ 
+        if e.has_key("do_shrike_vars") and e["do_shrike_vars"] == 1:
+             tmpd["do_shrike_vars"] = True
+        elif e.has_key("do_shrike_vars") and e["do_shrike_vars"] != 1:
+             tmpd["do_shrike_vars"] = False 
+        else:
+             tmpd["do_shrike_vars"] = cuckoo_api["do_shrike_vars"]
 
         #cuckoo options
         if e.has_key("options"):
