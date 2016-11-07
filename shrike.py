@@ -16,19 +16,19 @@ import urllib
 #from threading import Thread
 from multiprocessing import Process
 from multiprocessing import Queue
-import re
-###### doesn't seem to actually help with perf at all. Maybe we are getting unicode strings in?!?!
-#try:
-#    import re2 as re
-#except ImportError:
-#    print "failling back to normal RE engine"
-#    import re
-#else:
-#    re.set_fallback_notification(re.FALLBACK_WARNING)
+###### doesn't seem to actually help with perf at all. Unicode strings maybe?
+try:
+    import re2 as re
+except ImportError:
+    print "failling back to normal RE engine"
+    import re
+else:
+    re.set_fallback_notification(re.FALLBACK_WARNING)
 
 alert_search_list_sid = []
 alert_search_list_msg_re = []
 alert_search_ignore_sid = []
+alert_search_ignore_ip = []
 http_search_list = []
 autofire_blacklist = []
 http_stack = []
@@ -255,7 +255,7 @@ def autofire(target,hentry,aentry):
             shrike_refer = None           
             skip_mangle = False
             gateway_string = None
- 
+            fakeref = None
             if aentry["asl"].has_key("no_server_target_mangle") and aentry["asl"]["no_server_target_mangle"] != 1:
                 skip_mangle = True
 
@@ -303,6 +303,15 @@ def autofire(target,hentry,aentry):
             else:
                 options_string=None
 
+            if e["gen_fake_refer"]:
+                choice = random.randint(1,3)
+                if choice == 1:
+                    fakeref = gen_fake_google(target,False)
+                elif choice == 2:
+                    fakeref =  gen_fake_bing()
+                elif choice == 3:
+                    fakeref = gen_fake_yahoo(target)
+                print "using fake referer %s" % (fakeref)                
             #specify tags if present
             if e["tags"]:
                 tags_string=e["tags"]
@@ -311,7 +320,7 @@ def autofire(target,hentry,aentry):
 
             #specify priority if present
             if e["priority"]:
-                priority_string=e["priority"]
+                priority_string=int(e["priority"])
             else:
                 priority_string=None
 
@@ -359,9 +368,9 @@ def autofire(target,hentry,aentry):
                    tags_string += ",%s" % (aentry["asl"]["tags"])
                 else:
                    tags_string = aentry["asl"]["options"]
-            
+             
             #if aentry
-            data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string,shrike_sid=shrike_sid,shrike_refer=shrike_refer,shrike_msg=shrike_msg,shrike_url=shrike_url,package=package_string,timeout=timeout_string,priority=priority_string,machine=machine_string,platform=platform_string,gateway=gateway_string)
+            data=dict(url=target,custom=custom_string,options=options_string,tags=tags_string,shrike_sid=shrike_sid,shrike_refer=shrike_refer,shrike_msg=shrike_msg,shrike_url=shrike_url,package=package_string,timeout=timeout_string,priority=priority_string,machine=machine_string,platform=platform_string,gateway=gateway_string,referer=fakeref)
             response = requests.post(e["url"], auth=(e["user"],e["pass"]), data=data, proxies=e["proxies"], verify=e["verifyssl"])
     except Exception as err:
         print "failed to send target:%s reason:%s" % (target,err)
@@ -635,7 +644,9 @@ if conf.has_key("alert_search_list"):
             alert_search_list_sid.append(e)
         elif e["search_type"] == "alert_sid_ignore":
             alert_search_ignore_sid.append(e["match"])
-         
+        elif e["search_type"] == "alert_ip_ignore":
+            alert_search_ignore_ip.append(e["match"])
+        
 #wordlist gen
 if conf.has_key("wordlist"):
     try:
@@ -769,6 +780,12 @@ if conf.has_key("cuckoo_server_list"):
              tmpd["do_shrike_vars"] = False 
         else:
              tmpd["do_shrike_vars"] = cuckoo_api["do_shrike_vars"]
+
+        #do we want to generate a fake referer?
+        if e.has_key("gen_fake_refer") and e["gen_fake_refer"] == 1:
+             tmpd["gen_fake_refer"] = True
+        else:
+             tmpd["gen_fake_refer"] = False
 
         #cuckoo options
         if e.has_key("options"):
@@ -936,7 +953,7 @@ def ProcessLOG(q):
 
             if e["event_type"] == "alert":
                 try:
-                    if e["alert"]["signature_id"] not in alert_search_ignore_sid:
+                    if (e["alert"]["signature_id"] not in alert_search_ignore_sid) and (e["dest_ip"] not in alert_search_ignore_ip) and (e["src_ip"] not in alert_search_ignore_ip) :
                         alert_check_search_list(e)
                 except Exception as err:
                     print "failed to run alert_check_search %s" % (err)
